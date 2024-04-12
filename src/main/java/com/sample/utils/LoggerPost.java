@@ -2,12 +2,16 @@ package com.sample.utils;
 
 import java.io.*;
 import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.Iterator;
 
 public class LoggerPost {
     private String filePath;
     private PostDB db;
+    private LocalDateTime lastLoginTime; // Time when the user last logged in
+    private static final long LOGIN_TIMEOUT_MINUTES = 10; // Login timeout duration
 
     public LoggerPost(String path, String known_hosts_file) {
         db = new PostDB(known_hosts_file);
@@ -22,30 +26,44 @@ public class LoggerPost {
 
     public void Login(LoginInfo login, String driver) {
         db.Login(login, driver);
+        lastLoginTime = LocalDateTime.now(); // Update last login time on successful login
     }
 
     public void Logout() {
         db.Logout();
+        lastLoginTime = null; // Clear last login time on logout
     }
 
     public boolean GetLoggedIn() {
-        return db.GetLoggedIn();
+        if (lastLoginTime != null && ChronoUnit.MINUTES.between(lastLoginTime, LocalDateTime.now()) < LOGIN_TIMEOUT_MINUTES) {
+            return db.GetLoggedIn();
+        } else {
+            Logout(); // Auto-logout if time expired
+            return false;
+        }
     }
 
     @Deprecated
-    public void PostToLog(String post) {
-        Path p = Paths.get(filePath);
-        String s = System.lineSeparator() + post;
-        try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(p,
-                StandardOpenOption.APPEND))) {
-            out.write(s.getBytes());
-        } catch (IOException e) {
-            System.err.println(e.getMessage());
+   public void PostToLog(String post) {
+        if (GetLoggedIn()) {
+            Path p = Paths.get(filePath);
+            String s = System.lineSeparator() + post;
+            try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(p, StandardOpenOption.APPEND))) {
+                out.write(s.getBytes());
+            } catch (IOException e) {
+                System.err.println(e.getMessage());
+            }
+        } else {
+            System.out.println("You aren't logged in. Log in here.");
         }
     }
 
     public void PostToDB(String post) {
-        db.addPost(post);
+        if (GetLoggedIn()) {
+            db.addPost(post);
+        } else {
+            System.out.println("You aren't logged in. Log in here.");
+        }
     }
 
     @Deprecated
