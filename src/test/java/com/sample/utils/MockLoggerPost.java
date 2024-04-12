@@ -3,7 +3,7 @@ package com.sample.utils;
 import java.util.LinkedList;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-
+import java.time.Duration;
 // Example of the alternative to Mockito
 // WARNING: DOESN'T WORK.
 public class MockLoggerPost extends LoggerPost {
@@ -13,6 +13,7 @@ public class MockLoggerPost extends LoggerPost {
         public MockPost(String ts, String p) { timeStamp = ts; post = p; }
     }
     private boolean isLoggedIn = false;
+    private LocalDateTime lastLoginTime;
     private LinkedList<MockPost> posts = new LinkedList<MockPost>();
 
     public MockLoggerPost(String ign1, String ign2) {
@@ -31,8 +32,15 @@ public class MockLoggerPost extends LoggerPost {
     public boolean GetLoggedIn() {
         return isLoggedIn;
     }
+    private void checkLoginStatus() {
+        if (!isLoggedIn) return;
 
+        if (Duration.between(lastLoginTime, LocalDateTime.now()).toMinutes() >= 10) {
+            isLoggedIn = false;
+        }
+    }
     public void PostToDB(String post) {
+        checkLoginStatus();
         if (!isLoggedIn)
             return;
         posts.add(new MockPost(
@@ -41,6 +49,7 @@ public class MockLoggerPost extends LoggerPost {
     }
 
     public String GetPostsFromDB() {
+        checkLoginStatus();
         if (!isLoggedIn)
             return "Internal error: Not logged in";
         String result = "timeStamp\ttext\n";
@@ -51,6 +60,7 @@ public class MockLoggerPost extends LoggerPost {
     }
 
     public boolean DeletePostFromDB(String post) {
+        checkLoginStatus();
         if (!isLoggedIn)
             return false;
 
